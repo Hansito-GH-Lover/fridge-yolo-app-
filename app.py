@@ -1,19 +1,15 @@
 import streamlit as st
 from ultralytics import YOLO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 import numpy as np
+import io
 
-# --- Seite konfigurieren ---
+# --- Page Config & Theme ---
 st.set_page_config(page_title="Kühlschrank-Objekterkennung", layout="wide")
 st.markdown("""
 <style>
-body {
-    background-color: #f0f8ff;  /* Kühlschrank-Blau */
-    font-family: 'Arial', sans-serif;
-}
-h1, h2, h3 {
-    color: #2f4f4f;
-}
+body { background-color: #f0f8ff; font-family: 'Arial', sans-serif; }
+h1, h2, h3 { color: #2f4f4f; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -27,7 +23,7 @@ confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5, 
 # --- Modell laden ---
 @st.cache_resource
 def load_model():
-    return YOLO("yolov8n.pt")  # leichtes vortrainiertes Modell
+    return YOLO("yolov8n.pt")  # leichtes, vortrainiertes YOLOv8-Modell
 
 model = load_model()
 
@@ -38,7 +34,7 @@ if uploaded_file:
     # --- YOLO Prediction ---
     results = model(img_array)[0]
 
-    # --- PIL Drawing ---
+    # --- PIL Drawing für Bounding Boxes ---
     draw = ImageDraw.Draw(image)
     colors = ["red", "green", "blue", "orange", "purple", "yellow"]
     detections = []
@@ -63,7 +59,6 @@ if uploaded_file:
         cols = st.columns(len(detections))
         for col, (label, conf) in zip(cols, detections):
             emoji = ""
-            # Emoji-Zuweisung für Lebensmittel
             if label.lower() in ["apple", "banana", "orange"]: emoji = "🍎"
             elif label.lower() in ["bottle", "milk"]: emoji = "🥛"
             elif label.lower() in ["carrot", "broccoli"]: emoji = "🥕"
@@ -76,9 +71,11 @@ if uploaded_file:
     st.image(image, use_column_width=True)
 
     # --- Download Button ---
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
     st.download_button(
         label="Annotiertes Bild herunterladen",
-        data=image.tobytes(),
+        data=buffer.getvalue(),
         file_name="annotated.png",
         mime="image/png"
     )
